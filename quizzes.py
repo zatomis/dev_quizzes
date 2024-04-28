@@ -1,6 +1,7 @@
 import logging
+import telegram
 from environs import Env
-from telegram import Update, ForceReply
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import os
 import random
@@ -31,16 +32,21 @@ def load_quizzes():
 
 
 def start(update: Update, context: CallbackContext) -> None:
-    """Send a message when the command /start is issued."""
+    custom_keyboard = [['Новый вопрос', 'Сдаться'],
+                       ['Мой счет']]
+    reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
+
     user = update.effective_user
     update.message.reply_markdown_v2(
         fr'Здравствуйте {user.mention_markdown_v2()}\!',
-        reply_markup=ForceReply(selective=True),
+        reply_markup=reply_markup,
     )
 
 
 def echo(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(update.message.text)
+    if update.message.text == 'Новый вопрос':
+        question_now = question[random.randint(0,len(question))]
+        update.message.reply_text(question_now)
 
 
 if __name__ == '__main__':
@@ -58,7 +64,5 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     logger.info('Бот Игра - викторина')
     question, answer = load_quizzes()
-
-    while True:
-        updater.start_polling()
-        updater.idle()
+    updater.start_polling()
+    updater.idle()
