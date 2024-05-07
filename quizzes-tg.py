@@ -5,9 +5,10 @@ from telegram import Update
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
                           ConversationHandler, CallbackContext)
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
+import redis
 import os
 import random
-import redis
+
 
 question_answer_count = 0
 logging.basicConfig(
@@ -15,24 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 ANSWER = 0
-
-def load_quizzes():
-    quizzes = []
-    directory = 'questions'
-    number = 0
-    for file in os.listdir(directory):
-        if file.endswith(".txt"):
-            with open(os.path.join(directory, file), "r", encoding='KOI8-R') as sprite_file:
-                quizzes.append(sprite_file.read())
-    quizzes = random.choice(quizzes).split('\n\n')
-    for i, question_answer in enumerate(quizzes):
-        if "Вопрос" in question_answer:
-            redis_question.set(number, question_answer)
-            redis_answer.set(number, quizzes[i+1])
-            number += 1
-    return number
 
 
 def start(update: Update, context: CallbackContext) -> None:
@@ -74,6 +58,21 @@ def give_up(update: Update, context: CallbackContext):
     update.message.reply_text(f"Правильный ответ: {correct_answer}")
     return send_question(update, context)
 
+def load_quizzes():
+    quizzes = []
+    directory = 'questions'
+    number = 0
+    for file in os.listdir(directory):
+        if file.endswith(".txt"):
+            with open(os.path.join(directory, file), "r", encoding='KOI8-R') as sprite_file:
+                quizzes.append(sprite_file.read())
+    quizzes = random.choice(quizzes).split('\n\n')
+    for i, question_answer in enumerate(quizzes):
+        if "Вопрос" in question_answer:
+            redis_question.set(number, question_answer)
+            redis_answer.set(number, quizzes[i+1])
+            number += 1
+    return number
 
 def check_answer(update: Update, context: CallbackContext):
     user_number_answer = user_question.get(update.message.from_user.id)
