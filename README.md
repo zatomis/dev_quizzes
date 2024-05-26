@@ -45,9 +45,18 @@ pip install -r requirements.txt
 - REDIS_PORT - ваш Redis порт 
 - VK - Ваш vk API ключ(для бота, который отвечает на вопросы).
 
-## Папка с вопросами
-В папке `dev_quizzes` создайте папку `questions` и поместите туда вопросы
-[вопросы](https://dvmn.org/media/modules_dist/quiz-questions.zip)
+## Настройки ботов
+Процесс запуска любого из ботов предполагает начальные установки, такие как:
+```commandline
+python3 quizzes-tg.py --folder
+```
+для указания папки с вопросами, по умолчанию название папки `questions`, в которую нужно разместить [вопросы](https://dvmn.org/media/modules_dist/quiz-questions.zip)
+
+```commandline
+python3 quizzes-tg.py --createquizzes
+```
+команда для начального заполнения БД вопросов 
+
 
 ## Запуск телеграм бота
 
