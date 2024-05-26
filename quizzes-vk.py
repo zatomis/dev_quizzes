@@ -1,3 +1,4 @@
+import argparse
 import os
 from environs import Env
 import random
@@ -6,34 +7,12 @@ from vk_api.keyboard import VkKeyboard
 from vk_api.longpoll import VkLongPoll, VkEventType
 import redis
 import logging
+from quizzes_api import clear_text, load_quizzes
 
 
 question_answer_count = 0
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
 logger = logging.getLogger(__name__)
 
-def clear_text(message):
-    message = str(message.split('\n')[1])
-    message = message.replace('.','')
-    return message.lower().strip()
-
-def load_quizzes():
-    quizzes = []
-    directory = 'questions'
-    number = 0
-    for file in os.listdir(directory):
-        if file.endswith(".txt"):
-            with open(os.path.join(directory, file), "r", encoding='KOI8-R') as sprite_file:
-                quizzes.append(sprite_file.read())
-    quizzes = random.choice(quizzes).split('\n\n')
-    for i, question_answer in enumerate(quizzes):
-        if "Вопрос" in question_answer:
-            redis_question.set(number, question_answer)
-            redis_answer.set(number, quizzes[i+1])
-            number += 1
-    return number
 
 def check_answer(event, vk_api):
     user_number_answer = user_question.get(event.user_id)
@@ -85,6 +64,9 @@ def start_communication(event, vk_api):
     )
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+    )
     env: Env = Env()
     env.read_env()
     host = env('REDIS_HOST')
@@ -92,23 +74,26 @@ if __name__ == "__main__":
     redis_answer = redis.Redis(host=host, port=port, db=0, protocol=3)
     redis_question = redis.Redis(host=host, port=port, db=1, protocol=3)
     user_question = redis.Redis(host=host, port=port, db=2, protocol=3)
-
     logger.setLevel(logging.INFO)
     logger.info('ВК Игра - викторина')
-    question_answer_count = load_quizzes()
+    question_answer_count = load_quizzes(redis_question, redis_answer)
+    if (question_answer_count):
+        vk_key_token = env('VK')
+        vk_session = vk.VkApi(token=vk_key_token)
+        vk_api = vk_session.get_api()
+        longpoll = VkLongPoll(vk_session)
+        for event in longpoll.listen():
+            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                if event.text == "Начать":
+                    start_communication(event, vk_api)
+                elif event.text == "Новый вопрос":
+                    send_question(event, vk_api)
+                elif event.text == "Сдаться":
+                    send_answer(event, vk_api)
+                    send_question(event, vk_api)
+                else:
+                    check_answer(event, vk_api)
+    else:
+        print("Необходимо создать БД Викторины, воспользуйтесь инструкцией --help")
 
-    vk_key_token = env('VK')
-    vk_session = vk.VkApi(token=vk_key_token)
-    vk_api = vk_session.get_api()
-    longpoll = VkLongPoll(vk_session)
-    for event in longpoll.listen():
-        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            if event.text == "Начать":
-                start_communication(event, vk_api)
-            elif event.text == "Новый вопрос":
-                send_question(event, vk_api)
-            elif event.text == "Сдаться":
-                send_answer(event, vk_api)
-                send_question(event, vk_api)
-            else:
-                check_answer(event, vk_api)
+
