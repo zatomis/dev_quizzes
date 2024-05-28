@@ -1,5 +1,3 @@
-import argparse
-import os
 from environs import Env
 import random
 import vk_api as vk
@@ -8,10 +6,29 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 import redis
 import logging
 from quizzes_api import clear_text, load_quizzes
+import argparse
 
 
-question_answer_count = 0
 logger = logging.getLogger(__name__)
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Бот Викторина"
+    )
+    parser.add_argument(
+        '--folder',
+        default='questions',
+        type=str,
+        help='Указать новый путь к данным викторины',
+    )
+    parser.add_argument(
+        '--createquizzes',
+        action='store_true',
+        help='Создать БД Викторины'
+    )
+    args = parser.parse_args()
+    return args
 
 
 def check_answer(event, vk_api):
@@ -28,6 +45,7 @@ def check_answer(event, vk_api):
         random_id=random.randint(1, 1000),
     )
 
+
 def send_question(event, vk_api):
     number = random.randint(0, question_answer_count)
     question_now = redis_question.get(number)
@@ -37,6 +55,7 @@ def send_question(event, vk_api):
         message=question_now.decode("utf-8"),
         random_id=random.randint(1, 1000),
     )
+
 
 def send_answer(event, vk_api):
     user_number_answer = user_question.get(event.user_id)
@@ -63,6 +82,7 @@ def start_communication(event, vk_api):
         keyboard=keyboard.get_keyboard(),
     )
 
+
 if __name__ == "__main__":
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -76,8 +96,12 @@ if __name__ == "__main__":
     user_question = redis.Redis(host=host, port=port, db=2, protocol=3)
     logger.setLevel(logging.INFO)
     logger.info('ВК Игра - викторина')
-    question_answer_count = load_quizzes(redis_question, redis_answer)
-    if (question_answer_count):
+
+    question_answer_count = load_quizzes(redis_question,
+                                         redis_answer,
+                                         parse_arguments().folder,
+                                         parse_arguments().createquizzes)
+    if question_answer_count:
         vk_key_token = env('VK')
         vk_session = vk.VkApi(token=vk_key_token)
         vk_api = vk_session.get_api()
@@ -95,5 +119,3 @@ if __name__ == "__main__":
                     check_answer(event, vk_api)
     else:
         print("Необходимо создать БД Викторины, воспользуйтесь инструкцией --help")
-
-

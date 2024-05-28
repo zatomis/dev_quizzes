@@ -8,12 +8,30 @@ from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
 import redis
 import random
 from quizzes_api import clear_text, load_quizzes
+import argparse
 
 
-question_answer_count = 0
 logger = logging.getLogger(__name__)
-
 ANSWER = 0
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Бот Викторина"
+    )
+    parser.add_argument(
+        '--folder',
+        default='questions',
+        type=str,
+        help='Указать новый путь к данным викторины',
+    )
+    parser.add_argument(
+        '--createquizzes',
+        action='store_true',
+        help='Создать БД Викторины'
+    )
+    args = parser.parse_args()
+    return args
 
 
 def start(update: Update, context: CallbackContext) -> None:
@@ -89,7 +107,10 @@ if __name__ == '__main__':
     dispatcher.add_handler(conv_handler)
     logger.setLevel(logging.INFO)
     logger.info('Бот Игра - викторина')
-    question_answer_count = load_quizzes(redis_question, redis_answer)
+    question_answer_count = load_quizzes(redis_question,
+                                         redis_answer,
+                                         parse_arguments().folder,
+                                         parse_arguments().createquizzes)
     if (question_answer_count):
         updater.start_polling()
         updater.idle()

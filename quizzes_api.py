@@ -1,37 +1,17 @@
-import argparse
-import datetime
 import os
 import random
 
 
 def clear_text(message):
     message = str(message.split('\n')[1])
-    message = message.replace('.','')
+    message = message.replace('.', '')
     return message.lower().strip()
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Бот Викторина"
-    )
-    parser.add_argument(
-        '--folder',
-        default='questions',
-        type=str,
-        help='Указать новый путь к данным викторины',
-    )
-    parser.add_argument(
-        '--createquizzes',
-        action='store_true',
-        help='Создать БД Викторины'
-    )
-    args = parser.parse_args()
-    return args
 
-def load_quizzes(redis_question, redis_answer):
+def load_quizzes(redis_question, redis_answer, directory, createquizzes):
     quizzes = []
-    directory = parse_arguments().folder
     number = 0
-    if(parse_arguments().createquizzes):
+    if createquizzes:
         for file in os.listdir(directory):
             if file.endswith(".txt"):
                 with open(os.path.join(directory, file), "r", encoding='KOI8-R') as sprite_file:
@@ -45,4 +25,3 @@ def load_quizzes(redis_question, redis_answer):
         return number
     else:
         return redis_question.dbsize()
-
