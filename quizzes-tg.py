@@ -9,6 +9,7 @@ import redis
 import random
 from quizzes_api import clear_text, load_quizzes
 import argparse
+from functools import partial
 
 
 logger = logging.getLogger(__name__)
@@ -53,19 +54,20 @@ def cancel(bot, update):
     return ConversationHandler.END
 
 
-def send_question(update: Update, context: CallbackContext):
-    number = random.randint(0, question_answer_count)
+def send_question(update: Update, context: CallbackContext, question_answer_count):
+    number = random.randint(0, int(question_answer_count))
     question_now = redis_question.get(number)
     user_question.set(update.message.from_user.id, number)
     update.message.reply_text(question_now.decode("utf-8"))
     return ANSWER
 
 
-def give_up(update: Update, context: CallbackContext):
+def give_up(update: Update, context: CallbackContext, question_answer_count):
     user_number_answer = user_question.get(update.message.from_user.id)
     correct_answer = clear_text(redis_answer.get(user_number_answer).decode("utf-8"))
     update.message.reply_text(f"Правильный ответ: {correct_answer}")
-    return send_question(update, context)
+    # return partial(send_question,(update, context, int(question_answer_count))
+    return partial(send_question, question_answer_count=question_answer_count)
 
 
 def check_answer(update: Update, context: CallbackContext):
@@ -93,25 +95,26 @@ if __name__ == '__main__':
     user_question = redis.Redis(host=host, port=port, db=2, protocol=3)
     updater = Updater(token_bot)
     dispatcher = updater.dispatcher
-    conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(Filters.regex(r"^Новый вопрос$"), send_question)],
-        states={
-            ANSWER: [
-                MessageHandler(Filters.regex(r"^Сдаться$"), give_up),
-                MessageHandler(Filters.text & ~Filters.command, check_answer),
-            ]
-        },
-        fallbacks=[CommandHandler('cancel', cancel)]
-    )
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(conv_handler)
-    logger.setLevel(logging.INFO)
-    logger.info('Бот Игра - викторина')
     question_answer_count = load_quizzes(redis_question,
                                          redis_answer,
                                          parse_arguments().folder,
                                          parse_arguments().createquizzes)
     if (question_answer_count):
+        conv_handler = ConversationHandler(
+            entry_points=[MessageHandler(Filters.regex(r"^Новый вопрос$"), partial(send_question, question_answer_count=question_answer_count))],
+            states={
+                ANSWER: [
+                    MessageHandler(Filters.regex(r"^Сдаться$"), partial(give_up, question_answer_count=question_answer_count)),
+                    MessageHandler(Filters.text & ~Filters.command, check_answer),
+                ]
+            },
+            fallbacks=[CommandHandler('cancel', cancel)]
+        )
+        dispatcher.add_handler(CommandHandler("start", start))
+        dispatcher.add_handler(conv_handler)
+        logger.setLevel(logging.INFO)
+        logger.info('Бот Игра - викторина')
+
         updater.start_polling()
         updater.idle()
     else:

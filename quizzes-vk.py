@@ -46,7 +46,7 @@ def check_answer(event, vk_api):
     )
 
 
-def send_question(event, vk_api):
+def send_question(event, vk_api, question_answer_count):
     number = random.randint(0, question_answer_count)
     question_now = redis_question.get(number)
     user_question.set(event.user_id, number)
@@ -111,10 +111,10 @@ if __name__ == "__main__":
                 if event.text == "Начать":
                     start_communication(event, vk_api)
                 elif event.text == "Новый вопрос":
-                    send_question(event, vk_api)
+                    send_question(event, vk_api, question_answer_count)
                 elif event.text == "Сдаться":
                     send_answer(event, vk_api)
-                    send_question(event, vk_api)
+                    send_question(event, vk_api, question_answer_count)
                 else:
                     check_answer(event, vk_api)
     else:
